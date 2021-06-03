@@ -418,6 +418,14 @@ impl<AccountId, Moment, Hash> BondStruct<AccountId, Moment, Hash> {
                     as BondInterest
         }
     }
+
+    /// Calculate coupon effective interest rate without using the impact_data.
+    pub fn calc_effective_interest_rate_stable(
+        &self,
+    ) -> BondInterest {
+        let inner = &self.inner;
+        inner.interest_rate_base_value
+    }
 }
 
 impl<AccountId, Moment: UniqueSaturatedInto<u64> + AtLeast32Bit + Copy, Hash>
