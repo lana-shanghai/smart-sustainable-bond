@@ -173,8 +173,7 @@ pub struct BondInnerStruct<Moment, Hash> {
 
     /// Period from activation when effective interest rate
     /// invariably equals to interest_rate_start_period_value, sec
-    #[codec(compact)]
-    pub start_period: BondPeriod,
+    pub start_period: Option<BondPeriod>,
 
     /// <pre>
     /// This is "main" recalcualtion period of bond. Each payment_period:
@@ -248,11 +247,11 @@ impl<Moment, Hash> BondInnerStruct<Moment, Hash> {
             && self.payment_period >= MIN_PAYMENT_PERIOD * time_step
             && self.impact_data_send_period <= self.payment_period
             && is_period_muliple_of_time_step(self.payment_period, time_step)
-            && is_period_muliple_of_time_step(self.start_period, time_step)
+            && is_period_muliple_of_time_step(self.start_period.unwrap_or(0), time_step)
             && is_period_muliple_of_time_step(self.impact_data_send_period, time_step)
             && is_period_muliple_of_time_step(self.bond_finishing_period, time_step)
             && is_period_muliple_of_time_step(self.interest_pay_period, time_step)
-            && self.start_period >= self.impact_data_send_period
+            && self.start_period.unwrap_or(0) >= self.impact_data_send_period
             && self.interest_pay_period <= self.payment_period
             && self.bond_units_base_price > 0
             && self
@@ -372,7 +371,7 @@ impl<AccountId, Moment, Hash> BondStruct<AccountId, Moment, Hash> {
 
     #[inline]
     pub fn get_periods(&self) -> BondPeriodNumber {
-        if self.inner.start_period == 0 {
+        if self.inner.start_period.unwrap_or(0) == 0 {
             self.inner.bond_duration
         } else {
             self.inner.bond_duration + 1
@@ -419,6 +418,14 @@ impl<AccountId, Moment, Hash> BondStruct<AccountId, Moment, Hash> {
                     as BondInterest
         }
     }
+
+    /// Calculate coupon effective interest rate without using the impact_data.
+    pub fn calc_effective_interest_rate_stable(
+        &self,
+    ) -> BondInterest {
+        let inner = &self.inner;
+        inner.interest_rate_base_value
+    }
 }
 
 impl<AccountId, Moment: UniqueSaturatedInto<u64> + AtLeast32Bit + Copy, Hash>
@@ -439,11 +446,11 @@ impl<AccountId, Moment: UniqueSaturatedInto<u64> + AtLeast32Bit + Copy, Hash>
                 return None;
             }
             let moment = moment as u32;
-            if moment < self.inner.start_period {
+            if moment < self.inner.start_period.unwrap_or(0) {
                 Some((moment, 0))
             } else {
                 let period = min(
-                    ((moment - self.inner.start_period) / self.inner.payment_period)
+                    ((moment - self.inner.start_period.unwrap_or(0)) / self.inner.payment_period)
                         as BondPeriodNumber,
                     self.inner.bond_duration,
                 );
